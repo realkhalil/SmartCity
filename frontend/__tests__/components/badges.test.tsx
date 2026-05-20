@@ -7,7 +7,7 @@ describe('badge components', () => {
   it('renders severity labels with color styles', () => {
     render(<SeverityBadge severity="HIGH" />)
 
-    const badge = screen.getByText('Ã‰levÃ©')
+    const badge = screen.getByText('Élevé')
     expect(badge).toBeInTheDocument()
     expect(badge).toHaveStyle({ color: '#ef4444' })
   })
@@ -19,10 +19,10 @@ describe('badge components', () => {
   })
 
   it.each([
-    ['OPEN', 'ðŸ”´ Ouvert'],
-    ['in_progress', 'ðŸŸ¡ En cours'],
-    ['resolved', 'âœ… RÃ©solu'],
-    ['unexpected', 'ðŸ”´ Ouvert'],
+    ['OPEN', '🔴 Ouvert'],
+    ['in_progress', '🟡 En cours'],
+    ['resolved', '✅ Résolu'],
+    ['unexpected', '🔴 Ouvert'],
   ])('normalizes status %s', (status, label) => {
     render(<StatusBadge status={status} size="sm" />)
 

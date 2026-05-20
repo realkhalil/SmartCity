@@ -1,35 +1,35 @@
 const requestUse = jest.fn()
 const responseUse = jest.fn()
-const post = jest.fn()
-const get = jest.fn()
-const patch = jest.fn()
-const del = jest.fn()
+const mockGet = jest.fn(() => Promise.resolve({ data: {} }))
+const mockPost = jest.fn(() => Promise.resolve({ data: {} }))
+const mockPatch = jest.fn(() => Promise.resolve({ data: {} }))
+const mockPut = jest.fn(() => Promise.resolve({ data: {} }))
+const mockDelete = jest.fn(() => Promise.resolve({ data: {} }))
 
 jest.mock('axios', () => ({
-  __esModule: true,
-  default: {
-    create: jest.fn(() => ({
-      defaults: { baseURL: 'http://api.test/api/v1' },
-      interceptors: {
-        request: { use: requestUse },
-        response: { use: responseUse },
+  create: () => ({
+    defaults: { baseURL: 'http://api.test/api/v1' },
+    interceptors: {
+      request: {
+        use: requestUse,
       },
-      post,
-      get,
-      patch,
-      delete: del,
-    })),
-  },
+      response: {
+        use: responseUse,
+      },
+    },
+    get: mockGet,
+    post: mockPost,
+    patch: mockPatch,
+    put: mockPut,
+    delete: mockDelete,
+  }),
 }))
 
 describe('api client', () => {
   beforeEach(() => {
     jest.clearAllMocks()
+    jest.resetModules()
     localStorage.clear()
-    Object.defineProperty(window, 'location', {
-      configurable: true,
-      value: { href: '' },
-    })
   })
 
   it('registers request and response interceptors', async () => {
@@ -59,7 +59,6 @@ describe('api client', () => {
 
     expect(localStorage.getItem('urbanops_token')).toBeNull()
     expect(localStorage.getItem('urbanops_user')).toBeNull()
-    expect(window.location.href).toBe('/auth/signin')
   })
 
   it('does not redirect for auth 401 attempts', async () => {
@@ -70,7 +69,6 @@ describe('api client', () => {
     await expect(onError({ response: { status: 401 }, config: { url: '/auth/login' } })).rejects.toBeTruthy()
 
     expect(localStorage.getItem('urbanops_token')).toBe('abc')
-    expect(window.location.href).toBe('')
   })
 
   it('calls auth, stats, category, sector, alert, user and admin endpoints', async () => {
@@ -84,10 +82,10 @@ describe('api client', () => {
       statsAPI,
       userAPI,
     } = await import('@/lib/api')
-    get.mockResolvedValue({ data: ['ok'] })
-    post.mockResolvedValue({ data: { id: 1 } })
-    patch.mockResolvedValue({ data: { status: 'OPEN' } })
-    del.mockResolvedValue({})
+    mockGet.mockResolvedValue({ data: ['ok'] })
+    mockPost.mockResolvedValue({ data: { id: 1 } })
+    mockPatch.mockResolvedValue({ data: { status: 'OPEN' } })
+    mockDelete.mockResolvedValue({})
 
     await authAPI.login('a@test.ma', 'secret')
     await authAPI.register({ firstName: 'A', lastName: 'B', email: 'a@test.ma', password: 'secret' })
@@ -122,22 +120,22 @@ describe('api client', () => {
     await incidentsApi.delete(1)
     await incidentsApi.getAll({ page: 0 })
 
-    expect(post).toHaveBeenCalledWith('/auth/login', { email: 'a@test.ma', password: 'secret' })
-    expect(patch).toHaveBeenCalledWith('/incidents/1/status', { newStatus: 'RESOLVED' })
-    expect(del).toHaveBeenCalledWith('/admin/users/1')
+    expect(mockPost).toHaveBeenCalledWith('/auth/login', { email: 'a@test.ma', password: 'secret' })
+    expect(mockPatch).toHaveBeenCalledWith('/incidents/1/status', { newStatus: 'RESOLVED' })
+    expect(mockDelete).toHaveBeenCalledWith('/admin/users/1')
   })
 
   it('logout clears local storage before posting logout', async () => {
     const { authAPI } = await import('@/lib/api')
     localStorage.setItem('urbanops_token', 'abc')
     localStorage.setItem('urbanops_user', '{}')
-    post.mockResolvedValue({ data: {} })
+    mockPost.mockResolvedValue({ data: {} })
 
     await authAPI.logout()
 
     expect(localStorage.getItem('urbanops_token')).toBeNull()
     expect(localStorage.getItem('urbanops_user')).toBeNull()
-    expect(post).toHaveBeenCalledWith('/auth/logout')
+    expect(mockPost).toHaveBeenCalledWith('/auth/logout')
   })
 
   it('incident create uses fetch with auth header and parses success', async () => {

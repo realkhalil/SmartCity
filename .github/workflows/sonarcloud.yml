@@ -1,4 +1,4 @@
-name: SonarCloud analysis
+name: SonarCloud Backend
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
       - main
 
 jobs:
-  sonar:
+  sonar-backend:
     runs-on: ubuntu-latest
 
     steps:
@@ -17,12 +17,6 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
-
-      - name: Cache SonarCloud packages
-        uses: actions/cache@v4
-        with:
-          path: ~/.sonar/cache
-          key: ${{ runner.os }}-sonar
 
       - name: Build and analyze backend
         working-directory: backend

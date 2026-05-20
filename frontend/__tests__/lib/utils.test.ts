@@ -19,7 +19,7 @@ describe('utils', () => {
 
   it.each([
     ['CRITICAL', 'Critique'],
-    ['HIGH', 'Ã‰levÃ©'],
+    ['HIGH', 'Élevé'],
     ['MED', 'Moyen'],
     ['MEDIUM', 'Moyen'],
     ['LOW', 'Faible'],
@@ -31,7 +31,7 @@ describe('utils', () => {
   it.each([
     ['open', 'Ouvert'],
     ['in_progress', 'En cours'],
-    ['resolved', 'RÃ©solu'],
+    ['resolved', 'Résolu'],
     ['unknown', 'unknown'],
   ])('returns status label for %s', (status, label) => {
     expect(getStatusLabel(status)).toBe(label)
