@@ -17,15 +17,15 @@ jobs:
         with:
           node-version: 20
 
-      - name: Install frontend dependencies
+      - name: Install dependencies
         working-directory: frontend
         run: npm ci
 
-      - name: Run frontend tests with coverage
+      - name: Run tests with coverage
         working-directory: frontend
         run: npm run test:coverage
 
-      - name: SonarCloud scan frontend
+      - name: SonarCloud Scan Frontend
         uses: SonarSource/sonarqube-scan-action@v5
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
@@ -35,6 +35,6 @@ jobs:
             -Dsonar.projectKey=realkhalil_SmartCity_frontend
             -Dsonar.organization=realkhalil
             -Dsonar.sources=.
-            -Dsonar.exclusions=node_modules/**,.next/**,coverage/**
             -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
+            -Dsonar.exclusions=node_modules/**,.next/**,coverage/**
             -Dsonar.host.url=https://sonarcloud.io
