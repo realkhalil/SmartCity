@@ -1,6 +1,7 @@
 package ma.urbanops.service;
 
 import ma.urbanops.dto.request.IncidentRequest;
+import ma.urbanops.dto.response.AIAnalysisResult;
 import ma.urbanops.dto.response.ContentModerationResult;
 import ma.urbanops.entity.Category;
 import ma.urbanops.entity.Incident;
@@ -195,6 +196,160 @@ class IncidentServiceTest {
                         .build());
         verify(incidentRepository, never()).save(any(Incident.class));
         verify(fileStorageService, never()).storeFile(any());
+    }
+
+    @Test
+    void createIncident_whenAcceptedHighSeverity_shouldStorePhotoAnalyzeAlertAndLog() {
+        Category category = Category.builder().id(1L).name("Electricite").defaultAuthority("ONEE").authorityEmail("onee@test.ma").build();
+        Sector sector = Sector.builder().id(2L).name("Gueliz").build();
+        IncidentRequest request = IncidentRequest.builder()
+                .title("Cable expose")
+                .description("Cable electrique expose sur la route")
+                .categoryId(1L)
+                .sectorId(2L)
+                .latitude(31.63)
+                .longitude(-8.0)
+                .build();
+        org.springframework.mock.web.MockMultipartFile photo =
+                new org.springframework.mock.web.MockMultipartFile("photo", "cable.jpg", "image/jpeg", "x".getBytes());
+        ContentModerationResult moderation = ContentModerationResult.builder()
+                .accepted(true)
+                .reason("OK")
+                .confidence(0.8)
+                .fallbackUsed(false)
+                .build();
+
+        when(categoryRepository.findById(1L)).thenReturn(Optional.of(category));
+        when(sectorRepository.findById(2L)).thenReturn(Optional.of(sector));
+        when(aiAnalysisService.moderateIncidentContent(request.getTitle(), request.getDescription(), "Electricite", "Gueliz"))
+                .thenReturn(moderation);
+        when(fileStorageService.storeFile(photo)).thenReturn("stored.jpg");
+        when(aiAnalysisService.analyze(request.getDescription(), "Electricite")).thenReturn(AIAnalysisResult.builder()
+                .severity("HIGH")
+                .category("Electricite")
+                .authorityName("ONEE")
+                .reason("Danger immediat")
+                .confidence(0.9)
+                .fallbackUsed(false)
+                .build());
+        when(incidentRepository.save(any(Incident.class))).thenAnswer(inv -> {
+            Incident saved = inv.getArgument(0);
+            if (saved.getId() == null) saved.setId(77L);
+            return saved;
+        });
+
+        Incident result = incidentService.createIncident(request, photo, testUser);
+
+        assertEquals(Severity.HIGH, result.getSeverity());
+        assertEquals("ONEE", result.getAuthorityNotified());
+        assertEquals("INC-0077", result.getReferenceCode());
+        assertEquals("stored.jpg", result.getPhotoUrl());
+        assertTrue(result.getAlertSent());
+        verify(alertService).createAndSendAlert(result);
+        verify(moderationLogService).log(eq(77L), eq(request.getTitle()), eq(request.getDescription()),
+                eq(category), eq(sector), eq(testUser), eq(moderation));
+    }
+
+    @Test
+    void createIncident_whenAiFails_shouldUseDefaultsAndStillAlert() {
+        Category category = Category.builder().id(1L).name("Voirie").defaultAuthority("Commune").build();
+        Sector sector = Sector.builder().id(2L).name("Medina").build();
+        IncidentRequest request = IncidentRequest.builder()
+                .title("Route abimee")
+                .description("Route abimee avec trou profond")
+                .categoryId(1L)
+                .sectorId(2L)
+                .latitude(31.63)
+                .longitude(-8.0)
+                .build();
+
+        when(categoryRepository.findById(1L)).thenReturn(Optional.of(category));
+        when(sectorRepository.findById(2L)).thenReturn(Optional.of(sector));
+        when(aiAnalysisService.moderateIncidentContent(anyString(), anyString(), anyString(), anyString()))
+                .thenReturn(ContentModerationResult.builder().accepted(true).build());
+        when(aiAnalysisService.analyze(anyString(), anyString())).thenThrow(new RuntimeException("ai down"));
+        when(incidentRepository.save(any(Incident.class))).thenAnswer(inv -> {
+            Incident saved = inv.getArgument(0);
+            if (saved.getId() == null) saved.setId(88L);
+            return saved;
+        });
+
+        Incident result = incidentService.createIncident(request, null, null);
+
+        assertEquals(Severity.MEDIUM, result.getSeverity());
+        assertEquals("Commune", result.getAuthorityNotified());
+        assertEquals("Analyse indisponible", result.getAiAnalysisResult());
+        assertTrue(result.getAlertSent());
+    }
+
+    @Test
+    void createIncident_whenSeverityIsLow_shouldNotCreateAlert() {
+        Category category = Category.builder().id(1L).name("Dechets").build();
+        Sector sector = Sector.builder().id(2L).name("Palmeraie").build();
+        IncidentRequest request = IncidentRequest.builder()
+                .title("Poubelle pleine")
+                .description("Poubelle pleine depuis hier")
+                .categoryId(1L)
+                .sectorId(2L)
+                .latitude(31.63)
+                .longitude(-8.0)
+                .build();
+
+        when(categoryRepository.findById(1L)).thenReturn(Optional.of(category));
+        when(sectorRepository.findById(2L)).thenReturn(Optional.of(sector));
+        when(aiAnalysisService.moderateIncidentContent(anyString(), anyString(), anyString(), anyString()))
+                .thenReturn(ContentModerationResult.builder().accepted(true).build());
+        when(aiAnalysisService.analyze(anyString(), anyString())).thenReturn(AIAnalysisResult.builder()
+                .severity("LOW")
+                .category("Dechets")
+                .authorityName("Commune")
+                .reason("Gene mineure")
+                .build());
+        when(incidentRepository.save(any(Incident.class))).thenAnswer(inv -> {
+            Incident saved = inv.getArgument(0);
+            if (saved.getId() == null) saved.setId(99L);
+            return saved;
+        });
+
+        Incident result = incidentService.createIncident(request, null, null);
+
+        assertEquals(Severity.LOW, result.getSeverity());
+        assertFalse(result.getAlertSent());
+        verify(alertService, never()).createAndSendAlert(any());
+    }
+
+    @Test
+    void createIncident_whenAlertFails_shouldStillReturnSavedIncident() {
+        Category category = Category.builder().id(1L).name("Voirie").build();
+        Sector sector = Sector.builder().id(2L).name("Gueliz").build();
+        IncidentRequest request = IncidentRequest.builder()
+                .title("Route bloquee")
+                .description("Route bloquee par un obstacle")
+                .categoryId(1L)
+                .sectorId(2L)
+                .latitude(31.63)
+                .longitude(-8.0)
+                .build();
+        when(categoryRepository.findById(1L)).thenReturn(Optional.of(category));
+        when(sectorRepository.findById(2L)).thenReturn(Optional.of(sector));
+        when(aiAnalysisService.moderateIncidentContent(anyString(), anyString(), anyString(), anyString()))
+                .thenReturn(ContentModerationResult.builder().accepted(true).build());
+        when(aiAnalysisService.analyze(anyString(), anyString())).thenReturn(AIAnalysisResult.builder()
+                .severity("MEDIUM")
+                .authorityName("Commune")
+                .reason("Obstacle")
+                .build());
+        when(incidentRepository.save(any(Incident.class))).thenAnswer(inv -> {
+            Incident saved = inv.getArgument(0);
+            if (saved.getId() == null) saved.setId(100L);
+            return saved;
+        });
+        doThrow(new RuntimeException("queue down")).when(alertService).createAndSendAlert(any());
+
+        Incident result = incidentService.createIncident(request, null, null);
+
+        assertEquals("INC-0100", result.getReferenceCode());
+        assertFalse(result.getAlertSent());
     }
 
     @Test

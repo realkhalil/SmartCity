@@ -10,8 +10,13 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -153,5 +158,57 @@ class UserServiceTest {
         long result = userService.countAll();
         
         assertEquals(200L, result);
+    }
+
+    @Test
+    void findAllAndAdminHelpers_shouldDelegateToRepository() {
+        Pageable pageable = Pageable.ofSize(5);
+        Page<User> page = new PageImpl<>(List.of(testUser));
+        when(userRepository.findAll(pageable)).thenReturn(page);
+        when(userRepository.findAll()).thenReturn(List.of(testUser));
+        when(userRepository.findByRole(Role.ADMIN)).thenReturn(List.of(testUser));
+        when(userRepository.existsByEmail("admin@test.ma")).thenReturn(true);
+        when(userRepository.save(testUser)).thenReturn(testUser);
+
+        assertSame(page, userService.findAll(pageable));
+        assertEquals(List.of(testUser), userService.findAllUsers());
+        assertEquals(List.of(testUser), userService.findByRole(Role.ADMIN));
+        assertTrue(userService.existsByEmail("admin@test.ma"));
+        assertSame(testUser, userService.save(testUser));
+    }
+
+    @Test
+    void updateProfile_shouldUpdatePasswordOnlyWhenProvided() {
+        RegisterRequest request = RegisterRequest.builder()
+                .firstName("New")
+                .lastName("Name")
+                .phone("0611")
+                .sector("Medina")
+                .receiveAlerts(false)
+                .password("new-pass")
+                .build();
+        when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
+        when(passwordEncoder.encode("new-pass")).thenReturn("encoded-new");
+        when(userRepository.save(testUser)).thenReturn(testUser);
+
+        User result = userService.updateProfile(1L, request);
+
+        assertEquals("New", result.getFirstName());
+        assertEquals("encoded-new", result.getPassword());
+        assertFalse(result.getReceiveAlerts());
+    }
+
+    @Test
+    void countActiveThisWeek_whenRepositoryReturnsNull_shouldReturnZero() {
+        when(userRepository.countByCreatedAtAfter(any(LocalDateTime.class))).thenReturn(null);
+
+        assertEquals(0L, userService.countActiveThisWeek());
+    }
+
+    @Test
+    void deleteById_shouldDelegateToRepository() {
+        userService.deleteById(7L);
+
+        verify(userRepository).deleteById(7L);
     }
 }

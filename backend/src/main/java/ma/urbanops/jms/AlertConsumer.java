@@ -25,14 +25,14 @@ public class AlertConsumer {
 
         try {
             emailService.sendAlertEmailFromJms(
-                    message.getAuthorityEmail(),
                     message.getAuthorityName(),
+                    message.getAuthorityEmail(),
                     message.getReferenceCode(),
-                    message.getTitle(),
-                    message.getDescription(),
                     message.getSeverity(),
-                    message.getCategory(),
                     message.getSector(),
+                    message.getCategory(),
+                    message.getCreatedAt(),
+                    message.getDescription(),
                     message.getLatitude(),
                     message.getLongitude()
             );

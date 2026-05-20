@@ -49,6 +49,9 @@ public class AIAnalysisService {
                 try {
                     Thread.sleep(3000);
                     return callGemini(description, categoryHint);
+                } catch (InterruptedException e2) {
+                    Thread.currentThread().interrupt();
+                    return fallback(description, categoryHint);
                 } catch (Exception e2) {
                     return fallback(description, categoryHint);
                 }
@@ -112,7 +115,7 @@ public class AIAnalysisService {
             Map.class
         );
 
-        String text = extractText(response.getBody());
+        String text = extractText(requireResponseBody(response));
         return parseResponse(text, categoryHint);
     }
 
@@ -144,8 +147,17 @@ public class AIAnalysisService {
             Map.class
         );
 
-        String text = extractText(response.getBody());
+        String text = extractText(requireResponseBody(response));
         return parseModerationResponse(text);
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> requireResponseBody(ResponseEntity<Map> response) {
+        Map<String, Object> body = response.getBody();
+        if (body == null) {
+            throw new IllegalStateException("Empty Gemini response body");
+        }
+        return body;
     }
 
     private String buildPrompt(String description, String categoryHint) {

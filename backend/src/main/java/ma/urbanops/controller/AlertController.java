@@ -33,12 +33,7 @@ public class AlertController {
             @RequestParam(required = false) Severity severity,
             @RequestParam(required = false) Boolean acknowledged,
             Pageable pageable) {
-        Page<Alert> alerts;
-        if (acknowledged != null) {
-            alerts = alertService.getAllAlerts(pageable);
-        } else {
-            alerts = alertService.getAllAlerts(pageable);
-        }
+        Page<Alert> alerts = alertService.getAllAlerts(pageable);
         return ResponseEntity.ok(alerts.map(this::toResponse));
     }
 
