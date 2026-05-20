@@ -21,7 +21,7 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Response interceptor — do not redirect on failed login/register (those return 401 too)
+
 api.interceptors.response.use(
   (response) => response,
   (error: AxiosError) => {
