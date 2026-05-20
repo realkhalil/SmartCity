@@ -24,10 +24,13 @@ jobs:
           path: ~/.sonar/cache
           key: ${{ runner.os }}-sonar
 
-      - name: Build and analyze
+      - name: Build and analyze backend
+        working-directory: backend
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        run: mvn clean verify sonar:sonar \
-          -Dsonar.projectKey=realkhalil_SmartCity \
-          -Dsonar.organization=realkhalil \
-          -Dsonar.host.url=https://sonarcloud.io
+        run: |
+          mvn clean verify sonar:sonar \
+            -Dsonar.projectKey=realkhalil_SmartCity \
+            -Dsonar.organization=realkhalil \
+            -Dsonar.host.url=https://sonarcloud.io \
+            -Dsonar.login=$SONAR_TOKEN
