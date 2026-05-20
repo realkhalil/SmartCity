@@ -71,9 +71,9 @@ class StatsServiceTest {
         StatsResponse result = statsService.getDashboardStats();
 
         assertNotNull(result);
-        assertNotNull(result.getTotalIncidents());
-        assertNotNull(result.getOpenIncidents());
-        assertNotNull(result.getResolvedIncidents());
+        assertEquals(100L, result.getTotalIncidents());
+        assertEquals(30L, result.getOpenIncidents());
+        assertEquals(50L, result.getResolvedIncidents());
     }
 
     @Test
@@ -141,7 +141,6 @@ class StatsServiceTest {
         assertNotNull(result);
         for (StatsResponse.ServiceHealth health : result) {
             assertNotNull(health.getServiceName());
-            assertNotNull(health.getPercentage());
             assertTrue(health.getPercentage() >= 0 && health.getPercentage() <= 100);
         }
     }
@@ -176,13 +175,13 @@ class StatsServiceTest {
     void getDashboardStats_shouldIncludeAllFields() {
         StatsResponse result = statsService.getDashboardStats();
 
-        assertNotNull(result.getTotalIncidents());
-        assertNotNull(result.getOpenIncidents());
-        assertNotNull(result.getInProgressIncidents());
-        assertNotNull(result.getResolvedIncidents());
-        assertNotNull(result.getHighSeverityCount());
-        assertNotNull(result.getTotalCitizens());
-        assertNotNull(result.getResolutionRate());
+        assertEquals(100L, result.getTotalIncidents());
+        assertEquals(30L, result.getOpenIncidents());
+        assertEquals(20L, result.getInProgressIncidents());
+        assertEquals(50L, result.getResolvedIncidents());
+        assertEquals(15L, result.getHighSeverityCount());
+        assertEquals(150L, result.getTotalCitizens());
+        assertEquals(50.0, result.getResolutionRate(), 0.01);
         assertNotNull(result.getIncidentsByCategory());
         assertNotNull(result.getIncidentsBySector());
     }
